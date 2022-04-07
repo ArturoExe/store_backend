@@ -1,0 +1,21 @@
+# install packages
+    python -m pip install <name>
+
+# create the venv
+    python -m venv venv
+
+# activate the venv
+
+   win:venv\Scripts\activate
+   
+   mac:source venv/bin/activate
+
+#start server
+py server.py
+
+
+
+# packages for MONGO DATABASE
+python -m pip install Flask-PyMongo
+python -m pip install "pymongo[srv]"
+python -m pip install certifi  //HANDLES CONNECTION CERTIFICATES
