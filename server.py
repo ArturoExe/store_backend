@@ -1,4 +1,5 @@
 #import flask library
+from flask_cors import CORS
 from flask import Flask,abort,request
 from mock_data import catalog
 import json
@@ -7,7 +8,7 @@ from bson import ObjectId
 
 #create the application "server"
 app= Flask("Server")
-
+CORS(app)
  
 ## App routes
  #Root route
@@ -135,10 +136,10 @@ def someNumbers():
 
     return json.dumps(Numbers)
 
-################################################################################
-################################# COUPON CODE ENDPOINTS ################################
+##############################################################################
+################################# COUPON CODE ENDPOINTS ######################
 ################################# RETURN JSON ################################
-################################################################################
+##############################################################################
 
 allCoupons=[]
 
@@ -178,6 +179,23 @@ def getall_coupons():
 @app.route("/api/allcoupons",methods=["POST"])
 def addnew_coupon():
     coup=request.get_json() # return data (payload) from the request
+    
+    #coupon validation zone
+
+    #validates the coupon code length
+    if not "code" in coup:
+        return abort(400,"The coupon must contain a code")
+    
+    #validates the coupon code length 
+    if len(coup["code"])<5:
+        return abort(400,"The coupon must contain 5 characters")
+    
+    #validates the coupon code discount no more than 50 or lower than 5 percent
+    if coup["discount"]<5 or coup["discount"]>50:
+        return abort(400,"Discount not valid")
+
+
+    ##Adds the coupon to the database
     db.coupons.insert_one(coup)
     coup["_id"] = str(coup["_id"])
      
@@ -195,5 +213,82 @@ def coupon_code(code):
     coup["_id"]=str(coup["_id"])
 
     return json.dumps(coup)
+
+
+##############################################################################
+################################# users Endpoints ######################
+################################# RETURN JSON ################################
+##############################################################################
+
+##get all users from the database
+@app.route("/api/users", methods=["GET"])
+def getall_users():
+    
+    cursor = db.users.find({})
+    dbUsers=[]
+    for user in cursor:
+        user["_id"] = str(user["_id"])
+        dbUsers.append(user)
+    
+    return json.dumps(dbUsers)
+
+
+#Get the user by email <Sending the email>
+@app.route("/api/users/<email>",methods=['GET'])
+def user_email(email):
+
+    user= db.users.find_one({"email":email})
+
+    if not user:
+        return abort(404,"There is no coupon with such code")
+    
+    user["_id"]=str(user["_id"])
+
+    return json.dumps(user)
+
+##register a new user from the database
+@app.route("/api/users", methods=["POST"])
+def register_users():
+    
+    user=request.get_json()
+    ##validate te user before inserting one user
+    if not "name" in user or not "password" in user or not "email" in user:
+        abort(400,"Credentials must contain name,password and email")
+   
+    ##check empty values in the dictionary
+    if len(user["name"])<1:
+        return "Thats not a valid user name"
+
+    if len(user["password"])<1:
+        return "Thats not a valid password"
+    
+    if len(user["email"])<1:
+        return "Thats not a valid email"
+
+    db.users.insert_one(user)
+    user["_id"]=str(user["_id"])
+
+    return json.dumps(user)
+
+@app.route("/api/login",methods=["POST"])
+def validate_user():
+    data=request.get_json() # <= dict with user and password
+
+    if not "name" in data:
+        return abort(401,"User name required")
+    
+    if not "password" in data:
+        return abort(401,"Password required")
+
+    user=db.users.find_one({"name":data["name"],"password":data["password"]})
+
+    if not user:
+        abort(401," There is no user with that password")    
+    
+    user.pop('password') #<=== remove the password from the payload
+    user["_id"]=str(user["_id"])
+    return json.dumps(user) 
+
+
 #Run the app on debug mode 
 app.run(debug=True)
